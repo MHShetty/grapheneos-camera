@@ -86,6 +86,7 @@ class CamConfig(private val mActivity: MainActivity) {
             const val FOCUS_TIMEOUT = "focus_timeout"
             const val VIDEO_QUALITY = "video_quality"
             const val ASPECT_RATIO = "aspect_ratio"
+            const val VIDEO_ASPECT_RATIO = "video_aspect_ratio"
             const val INCLUDE_AUDIO = "include_audio"
             const val ENABLE_EIS = "enable_eis"
             const val SCAN = "scan"
@@ -119,6 +120,7 @@ class CamConfig(private val mActivity: MainActivity) {
             const val GRID_TYPE_INDEX = 0
 
             const val ASPECT_RATIO = AspectRatio.RATIO_4_3
+            const val VIDEO_ASPECT_RATIO = AspectRatio.RATIO_16_9
 
             val VIDEO_QUALITY = Quality.HIGHEST
 
@@ -275,26 +277,29 @@ class CamConfig(private val mActivity: MainActivity) {
 
     private var currentMode: CameraMode = DEFAULT_CAMERA_MODE
 
-    var aspectRatio: Int
+    private var photoAspectRatio: Int
         get() {
-            return when {
-                isVideoMode -> {
-                    AspectRatio.RATIO_16_9
-                }
-                isQRMode -> {
-                    AspectRatio.RATIO_4_3
-                }
-                else -> {
-                    commonPref.getInt(
-                        SettingValues.Key.ASPECT_RATIO,
-                        SettingValues.Default.ASPECT_RATIO
-                    )
-                }
-            }
+            return commonPref.getInt(
+                SettingValues.Key.ASPECT_RATIO,
+                SettingValues.Default.ASPECT_RATIO
+            )
         }
         set(value) {
             val editor = commonPref.edit()
             editor.putInt(SettingValues.Key.ASPECT_RATIO, value)
+            editor.apply()
+        }
+
+    private var videoAspectRatio: Int
+        get() {
+            return commonPref.getInt(
+                SettingValues.Key.VIDEO_ASPECT_RATIO,
+                SettingValues.Default.VIDEO_ASPECT_RATIO
+            )
+        }
+        set(value) {
+            val editor = commonPref.edit()
+            editor.putInt(SettingValues.Key.VIDEO_ASPECT_RATIO, value)
             editor.apply()
         }
 
@@ -801,9 +806,14 @@ class CamConfig(private val mActivity: MainActivity) {
             mActivity.settingsDialog.cmRadioGroup.check(R.id.latency_radio)
         }
 
-        aspectRatio = commonPref.getInt(
+        photoAspectRatio = commonPref.getInt(
             SettingValues.Key.ASPECT_RATIO,
             SettingValues.Default.ASPECT_RATIO
+        )
+
+        videoAspectRatio = commonPref.getInt(
+            SettingValues.Key.VIDEO_ASPECT_RATIO,
+            SettingValues.Default.VIDEO_ASPECT_RATIO
         )
 
         includeAudio = commonPref.getBoolean(
@@ -886,10 +896,18 @@ class CamConfig(private val mActivity: MainActivity) {
     }
 
     fun toggleAspectRatio() {
-        aspectRatio = if (aspectRatio == AspectRatio.RATIO_16_9) {
-            AspectRatio.RATIO_4_3
+        if (isVideoMode) {
+            videoAspectRatio = if (videoAspectRatio == AspectRatio.RATIO_16_9) {
+                AspectRatio.RATIO_4_3
+            } else {
+                AspectRatio.RATIO_16_9
+            }
         } else {
-            AspectRatio.RATIO_16_9
+            photoAspectRatio = if (photoAspectRatio == AspectRatio.RATIO_16_9) {
+                AspectRatio.RATIO_4_3
+            } else {
+                AspectRatio.RATIO_16_9
+            }
         }
         startCamera(true)
     }
@@ -970,10 +988,19 @@ class CamConfig(private val mActivity: MainActivity) {
         return cameraProvider?.hasCamera(tCameraSelector) ?: false
     }
 
+    fun getCurrentModeAspectRatio(): Int {
+        return when {
+            isQRMode -> AspectRatio.RATIO_4_3
+            isVideoMode -> videoAspectRatio
+            else -> photoAspectRatio
+        }
+    }
+
     // Start the camera with latest hard configuration
     fun startCamera(forced: Boolean = false) {
         if ((!forced && camera != null) || cameraProvider == null) return
 
+        val currentAspectRatio = getCurrentModeAspectRatio()
         mActivity.exposureBar.hidePanel()
         modePref = mActivity.getSharedPreferences(currentMode.name, Context.MODE_PRIVATE)
 
@@ -1016,7 +1043,7 @@ class CamConfig(private val mActivity: MainActivity) {
 
         val useCaseGroupBuilder = UseCaseGroup.Builder()
         val aspectRatioStrategy = AspectRatioStrategy(
-            aspectRatio, AspectRatioStrategy.FALLBACK_RULE_AUTO
+            currentAspectRatio, AspectRatioStrategy.FALLBACK_RULE_AUTO
         )
 
         if (isQRMode) {
@@ -1056,6 +1083,7 @@ class CamConfig(private val mActivity: MainActivity) {
                 videoCapture =
                     VideoCapture.withOutput(
                         Recorder.Builder()
+                            .setAspectRatio(currentAspectRatio)
                             .setQualitySelector(QualitySelector.from(videoQuality))
                             .build()
                     )
@@ -1147,6 +1175,14 @@ class CamConfig(private val mActivity: MainActivity) {
                     }
                     imageCapture = null
 
+                    if (videoAspectRatio == AspectRatio.RATIO_4_3) {
+                        videoAspectRatio = AspectRatio.RATIO_16_9
+                        mActivity.showMessage(mActivity.getString(R.string.aspect_ratio_unsupported_by_selected_resolution))
+                        startCamera(true)
+                        mActivity.settingsDialog.showOnlyRelevantSettings()
+                        return
+                    }
+
                     camera = cameraProvider!!.bindToLifecycle(
                         mActivity, cameraSelector,
                         newUseCaseGroupBuilder.build()
@@ -1177,7 +1213,7 @@ class CamConfig(private val mActivity: MainActivity) {
         // Focus camera on touch/tap
         mActivity.previewView.setOnTouchListener(mActivity)
         mActivity.previewView.apply {
-            when (aspectRatio) {
+            when (currentAspectRatio) {
                 AspectRatio.RATIO_16_9 -> {
                     markAs16by9Layout()
                 }

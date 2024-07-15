@@ -98,7 +98,7 @@ class CountDownTimerUI @JvmOverloads constructor(
     private fun beforeTimeStarts() {
 
         val params: ViewGroup.LayoutParams = layoutParams
-        params.height = if (camConfig.aspectRatio == AspectRatio.RATIO_4_3) {
+        params.height = if (camConfig.getCurrentModeAspectRatio() == AspectRatio.RATIO_4_3) {
             mActivity.previewView.width * 4 / 3
         } else {
             mActivity.previewView.height

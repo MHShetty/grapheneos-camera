@@ -168,6 +168,7 @@
     <string name="unable_to_access_output_file">Unable to access output file</string>
     <string name="please_wait_for_image_to_get_captured_before_opening">Please wait for the image to get captured before trying to open the gallery.</string>
     <string name="please_wait_for_image_to_get_captured_before_sharing">Please wait for the image to get captured before attempting to share via long tap</string>
+    <string name="aspect_ratio_unsupported_by_selected_resolution">This aspect ratio is not supported by selected resolution (Video quality)</string>
 
     <string name="file_details">File Details</string>
     <string name="file_name_generic">File Name: </string>

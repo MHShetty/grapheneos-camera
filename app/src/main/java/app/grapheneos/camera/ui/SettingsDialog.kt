@@ -2,6 +2,7 @@ package app.grapheneos.camera.ui
 
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.app.Dialog
 import android.graphics.Color
 import android.hardware.camera2.CameraCharacteristics
@@ -31,11 +32,15 @@ import androidx.annotation.StringRes
 import androidx.appcompat.widget.SwitchCompat
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.core.AspectRatio
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.DynamicRange
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.Preview
 import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
+import androidx.camera.video.VideoCapture
 import app.grapheneos.camera.CamConfig
 import app.grapheneos.camera.R
 import app.grapheneos.camera.databinding.SettingsBinding
@@ -180,14 +185,7 @@ class SettingsDialog(val mActivity: MainActivity) :
 
         aRToggle = binding.aspectRatioToggle
         aRToggle.setOnClickListener {
-            if (camConfig.isVideoMode) {
-                aRToggle.isChecked = true
-                mActivity.showMessage(
-                    getString(R.string.four_by_three_unsupported_in_video)
-                )
-            } else {
-                camConfig.toggleAspectRatio()
-            }
+            camConfig.toggleAspectRatio()
         }
 
         torchToggle = binding.torchToggleOption
@@ -344,6 +342,49 @@ class SettingsDialog(val mActivity: MainActivity) :
         )
     }
 
+    @SuppressLint("RestrictedApi")
+    fun isVideoAspectRatioSupported(
+        camera: Camera,
+        quality: Quality,
+        @AspectRatio.Ratio aspectRatio: Int
+    ): Boolean {
+
+        val preview = Preview.Builder()
+            .build()
+
+        val video = VideoCapture.Builder(
+            Recorder.Builder()
+                .setQualitySelector(QualitySelector.from(quality))
+                .setAspectRatio(aspectRatio)
+                .build()
+        ).build()
+
+        return camera.isUseCasesCombinationSupported(preview, video)
+    }
+
+    private fun updateAspectRatioToggle() {
+
+        aRToggle.isChecked = camConfig.getCurrentModeAspectRatio() == AspectRatio.RATIO_16_9
+        if (!camConfig.isVideoMode) {
+            aRToggle.isEnabled = true
+            return
+        }
+        val camera = camConfig.camera ?: return
+
+        val currentAspectRatio = camConfig.getCurrentModeAspectRatio()
+        val newAspectRatio =
+            if (currentAspectRatio == AspectRatio.RATIO_16_9) {
+                AspectRatio.RATIO_4_3
+            } else {
+                AspectRatio.RATIO_16_9
+            }
+
+        val isDifferentAspectRatioSupported =
+            isVideoAspectRatioSupported(camera, camConfig.videoQuality, newAspectRatio)
+
+        aRToggle.isEnabled = isDifferentAspectRatioSupported
+    }
+
     private fun resize() {
         mScrollViewContent.viewTreeObserver.addOnGlobalLayoutListener(object :
             ViewTreeObserver.OnGlobalLayoutListener {
@@ -396,6 +437,7 @@ class SettingsDialog(val mActivity: MainActivity) :
         } else {
             View.VISIBLE
         }
+        updateAspectRatioToggle()
     }
 
 
@@ -675,11 +717,7 @@ class SettingsDialog(val mActivity: MainActivity) :
 
         updateFlashMode()
 
-        if (camConfig.isVideoMode) {
-            aRToggle.isChecked = true
-        } else {
-            aRToggle.isChecked = camConfig.aspectRatio == AspectRatio.RATIO_16_9
-        }
+        aRToggle.isChecked = camConfig.getCurrentModeAspectRatio() == AspectRatio.RATIO_16_9
 
         torchToggle.isChecked = camConfig.isTorchOn
 
