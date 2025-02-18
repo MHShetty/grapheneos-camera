@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.util.Range
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -61,8 +62,13 @@ class SettingsDialog(val mActivity: MainActivity, themedContext: Context) :
     private var aRToggle: ToggleButton
     var torchToggle: ToggleButton
     private var gridToggle: ImageView
+
     var videoQualitySpinner: Spinner
-    private lateinit var vQAdapter: ArrayAdapter<String>
+    var videoFrameRateSpinner: Spinner
+
+    private lateinit var videoQualityAdapter: ArrayAdapter<String>
+    private lateinit var videoFrameRateAdapter: ArrayAdapter<String>
+
     private var focusTimeoutSpinner: Spinner
     private var timerSpinner: Spinner
 
@@ -84,6 +90,7 @@ class SettingsDialog(val mActivity: MainActivity, themedContext: Context) :
     private var enableEISSetting: View
     private var selfIlluminationSetting: View
     private var videoQualitySetting: View
+    private var videoFrameRateSetting: LinearLayout
     private var timerSetting: View
 
     var settingsFrame: View
@@ -226,18 +233,34 @@ class SettingsDialog(val mActivity: MainActivity, themedContext: Context) :
         videoQualitySpinner.onItemSelectedListener =
             object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(
-                    p0: AdapterView<*>?,
-                    p1: View?,
+                    parent: AdapterView<*>?,
+                    view: View?,
                     position: Int,
-                    p3: Long
+                    id: Long
                 ) {
-
-                    val choice = vQAdapter.getItem(position) as String
+                    val choice = videoQualityAdapter.getItem(position) as String
                     updateVideoQuality(choice)
                 }
 
-                override fun onNothingSelected(p0: AdapterView<*>?) {}
+                override fun onNothingSelected(parent: AdapterView<*>?) {}
             }
+
+        videoFrameRateSpinner = binding.videoFrameRateSpinner
+
+        videoFrameRateSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                val choice = videoFrameRateAdapter.getItem(position) as String
+                updateVideoFrameRate(choice)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+
+        }
 
         qRadio = binding.qualityRadio
         lRadio = binding.latencyRadio
@@ -333,6 +356,7 @@ class SettingsDialog(val mActivity: MainActivity, themedContext: Context) :
         enableEISSetting = binding.enableEisSetting
         selfIlluminationSetting = binding.selfIlluminationSetting
         videoQualitySetting = binding.videoQualitySetting
+        videoFrameRateSetting = binding.videoFrameRateSetting
         timerSetting = binding.timerSetting
 
         includeAudioToggle = binding.includeAudioSwitch
@@ -447,17 +471,18 @@ class SettingsDialog(val mActivity: MainActivity, themedContext: Context) :
         @androidx.camera.camera2.interop.ExperimentalCamera2Interop
         if (camConfig.isVideoMode) {
             includeAudioSetting.visibility = View.VISIBLE
-            enableEISSetting.visibility = View.GONE
             videoQualitySetting.visibility = View.VISIBLE
             enableEISSetting.visibility = if (camConfig.isVideoStabilizationSupported()) {
                 View.VISIBLE
             } else {
                 View.GONE
             }
+            videoFrameRateSetting.visibility = View.VISIBLE
         } else {
             includeAudioSetting.visibility = View.GONE
             enableEISSetting.visibility = View.GONE
             videoQualitySetting.visibility = View.GONE
+            videoFrameRateSetting.visibility = View.GONE
         }
 
         selfIlluminationSetting.visibility =
@@ -510,21 +535,23 @@ class SettingsDialog(val mActivity: MainActivity, themedContext: Context) :
         if (resCam) {
             camConfig.startCamera(true)
         } else {
-            videoQualitySpinner.setSelection(getAvailableQTitles().indexOf(choice))
+            videoQualitySpinner.setSelection(getAvailableQualityTitles().indexOf(choice))
 
         }
     }
 
-    fun titleToQuality(title: String): Quality {
-        return when (title) {
-            "2160p (UHD)" -> Quality.UHD
-            "1080p (FHD)" -> Quality.FHD
-            "720p (HD)" -> Quality.HD
-            "480p (SD)" -> Quality.SD
-            else -> {
-                Log.e("TAG", "Unknown quality: $title")
-                Quality.SD
-            }
+    fun updateVideoFrameRate(choice: String, restartCamera: Boolean = true) {
+
+        val videoFrameRate = titleToFrameRateRange(choice)
+
+        if (videoFrameRate == camConfig.videoFrameRate) return
+
+        camConfig.videoFrameRate = videoFrameRate
+
+        if (restartCamera) {
+            camConfig.startCamera(true)
+        } else {
+            videoFrameRateSpinner.setSelection(videoFrameRateAdapter.getPosition(choice))
         }
     }
 
@@ -717,27 +744,25 @@ class SettingsDialog(val mActivity: MainActivity, themedContext: Context) :
         return Recorder.getVideoCapabilities(cameraInfo).getSupportedQualities(DynamicRange.SDR)
     }
 
-    private fun getAvailableQTitles(): List<String> {
+
+    private fun getAvailableQualityTitles(): List<String> {
         val titles = arrayListOf<String>()
 
         getAvailableQualities().forEach {
-            titles.add(getTitleFor(it))
+            titles.add(getTitleForQuality(it))
         }
 
         return titles
     }
 
-    private fun getTitleFor(quality: Quality): String {
-        return when (quality) {
-            Quality.UHD -> "2160p (UHD)"
-            Quality.FHD -> "1080p (FHD)"
-            Quality.HD -> "720p (HD)"
-            Quality.SD -> "480p (SD)"
-            else -> {
-                Log.i("TAG", "Unknown constant: $quality")
-                "Unknown"
-            }
+    private fun getAvailableFrameRateTitles(): List<String> {
+        val titles = arrayListOf<String>()
+
+        camConfig.getAvailableVideoFrameRates().forEach {
+            titles.add(getTitleForFrameRateRange(it))
         }
+
+        return titles
     }
 
     fun updateGridToggleUI() {
@@ -788,24 +813,91 @@ class SettingsDialog(val mActivity: MainActivity, themedContext: Context) :
         slideDialogDown()
     }
 
-    fun reloadQualities() {
+    fun reloadVideoSettings() {
 
-        val titles = getAvailableQTitles()
+        val qualityTitles = getAvailableQualityTitles()
+        val frameRateTitles = getAvailableFrameRateTitles()
 
-        vQAdapter = ArrayAdapter<String>(
+        videoQualityAdapter = ArrayAdapter<String>(
             mActivity,
             android.R.layout.simple_spinner_item,
-            titles
+            qualityTitles
         )
 
-        vQAdapter.setDropDownViewResource(
+        videoQualityAdapter.setDropDownViewResource(
             android.R.layout.simple_spinner_dropdown_item
         )
 
-        videoQualitySpinner.adapter = vQAdapter
+        videoQualitySpinner.adapter = videoQualityAdapter
 
-        if (camConfig.videoQuality != Quality.HIGHEST) {
-            videoQualitySpinner.setSelection(titles.indexOf(getTitleFor(camConfig.videoQuality)))
+        videoFrameRateAdapter = ArrayAdapter<String>(
+            mActivity,
+            android.R.layout.simple_spinner_item,
+            frameRateTitles
+        )
+
+        videoFrameRateAdapter.setDropDownViewResource(
+            android.R.layout.simple_spinner_dropdown_item
+        )
+
+        videoFrameRateSpinner.adapter = videoFrameRateAdapter
+
+        videoFrameRateSpinner.setSelection(videoFrameRateAdapter.getPosition(getTitleForFrameRateRange(camConfig.videoFrameRate)))
+
+        if (camConfig.videoQuality != CamConfig.SettingValues.Default.VIDEO_QUALITY) {
+            videoQualitySpinner.setSelection(videoQualityAdapter.getPosition(getTitleForQuality(camConfig.videoQuality)))
+        }
+    }
+
+    companion object {
+        fun titleToQuality(title: String): Quality {
+            return when (title) {
+                "2160p (UHD)" -> Quality.UHD
+                "1080p (FHD)" -> Quality.FHD
+                "720p (HD)" -> Quality.HD
+                "480p (SD)" -> Quality.SD
+                else -> {
+                    Log.e("TAG", "Unknown quality: $title")
+                    Quality.SD
+                }
+            }
+        }
+
+        fun titleToFrameRateRange(title: String): Range<Int> {
+            val titleWithoutFps = title.dropLast(4)
+
+            if (titleWithoutFps.contains("-")) {
+                val lUArr = titleWithoutFps.split("-")
+
+                val lower = lUArr[0].dropLast(1).toInt()
+                val upper = lUArr[1].drop(1).toInt()
+
+                return Range(lower, upper)
+            } else {
+                val fps = titleWithoutFps.toInt()
+                return Range(fps, fps)
+            }
+        }
+    }
+
+    fun getTitleForFrameRateRange(range: Range<Int>) : String {
+        if (range.lower == range.upper) {
+            return "${range.lower} fps"
+        } else {
+            return "${range.lower} - ${range.upper} fps"
+        }
+    }
+
+    private fun getTitleForQuality(quality: Quality): String {
+        return when (quality) {
+            Quality.UHD -> "2160p (UHD)"
+            Quality.FHD -> "1080p (FHD)"
+            Quality.HD -> "720p (HD)"
+            Quality.SD -> "480p (SD)"
+            else -> {
+                Log.i("TAG", "Unknown constant: $quality")
+                "Unknown"
+            }
         }
     }
 }

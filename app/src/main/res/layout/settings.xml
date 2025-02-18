@@ -215,6 +215,39 @@
                     </LinearLayout>
 
                     <LinearLayout
+                        android:id="@+id/video_frame_rate_setting"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingVertical="@dimen/settings_dialog_menu_item_vertical"
+                        android:paddingHorizontal="@dimen/settings_dialog_menu_item_horizontal"
+                        android:layout_gravity="end"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_height="wrap_content"
+                            android:layout_width="wrap_content"
+                            android:layout_gravity="center_vertical"
+                            android:text="@string/video_frame_rate"/>
+
+                        <FrameLayout
+                            android:layout_height="wrap_content"
+                            android:padding="0dp"
+                            android:layout_margin="0dp"
+                            android:layout_width="match_parent">
+
+                            <Spinner
+                                android:id="@+id/video_frame_rate_spinner"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:checked="true"
+                                android:padding="0dp"
+                                android:layout_margin="0dp"
+                                android:layout_gravity="end"/>
+
+                        </FrameLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
                         android:id="@+id/include_audio_setting"
                         android:layout_width="match_parent"
                         android:layout_height="@dimen/settings_dialog_menu_item_height"
