@@ -1,6 +1,5 @@
 package app.grapheneos.camera
 
-import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
@@ -13,8 +12,12 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.util.Log
 import app.grapheneos.camera.CamConfig.SettingValues
+import app.grapheneos.camera.ui.composable.screen.serializer.CapturedItemSerializer
 import app.grapheneos.camera.util.edit
 import kotlin.jvm.Throws
+import kotlinx.parcelize.Parceler
+import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
 
 typealias ItemType = Int
 const val ITEM_TYPE_IMAGE: ItemType = 0
@@ -22,6 +25,8 @@ const val ITEM_TYPE_VIDEO: ItemType = 1
 const val IMAGE_NAME_PREFIX = "IMG_"
 const val VIDEO_NAME_PREFIX = "VID_"
 
+@Serializable(with = CapturedItemSerializer::class)
+@Parcelize
 class CapturedItem(
     val type: ItemType,
     val dateString: String,
@@ -45,12 +50,6 @@ class CapturedItem(
         return "$prefix$dateString"
     }
 
-    override fun writeToParcel(dest: Parcel, flags: Int) {
-        dest.writeByte(type.toByte())
-        dest.writeString(dateString)
-        uri.writeToParcel(dest, 0)
-    }
-
     override fun hashCode(): Int {
         return dateString.hashCode()
     }
@@ -62,18 +61,31 @@ class CapturedItem(
         return dateString == other.dateString
     }
 
-    companion object {
-        @JvmField
-        val CREATOR = object : Parcelable.Creator<CapturedItem> {
-            @SuppressLint("ParcelClassLoader")
-            override fun createFromParcel(source: Parcel): CapturedItem {
-                val type = source.readByte().toInt()
-                val dateString = source.readString()!!
-                val uri = Uri.CREATOR.createFromParcel(source)
-                return CapturedItem(type, dateString, uri)
-            }
+    companion object : Parceler<CapturedItem> {
+        override fun CapturedItem.write(dest: Parcel, flags: Int) {
+            dest.writeByte(type.toByte())
+            dest.writeString(dateString)
+            uri.writeToParcel(dest, 0)
+        }
 
-            override fun newArray(size: Int) = arrayOfNulls<CapturedItem>(size)
+        override fun create(source: Parcel): CapturedItem {
+            val type = source.readByte().toInt()
+            val dateString = source.readString()!!
+            val uri = Uri.CREATOR.createFromParcel(source)
+            return CapturedItem(type, dateString, uri)
+        }
+    }
+
+    fun delete(context: Context) : Boolean {
+        try {
+            return if (uri.authority == MediaStore.AUTHORITY) {
+                context.contentResolver.delete(uri, null, null) > 0
+            } else {
+                DocumentsContract.deleteDocument(context.contentResolver, uri)
+            }
+        } catch (e : Exception) {
+            e.printStackTrace()
+            return false
         }
     }
 

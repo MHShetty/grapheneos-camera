@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="system_accent1_100">#cbe2ff</color>
+    <color name="system_accent1_500">#1b69c5</color>
 
     <color name="system_neutral1_100">#dde2e9</color>
     <color name="system_neutral1_900">#181c1f</color>
