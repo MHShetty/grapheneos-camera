@@ -121,7 +121,7 @@
     <string name="cancel">Cancel</string>
     <string name="no_image">Please capture a photo/video before trying to view them.</string>
 
-    <string name="empty_gallery">Captured photos/videos not found</string>
+    <string name="empty_gallery">No captured photos/videos found</string>
 
     <string name="bind_failure">Failed to open camera due to an OS or hardware issue. Try rebooting.</string>
     <string name="camera_provider_init_failure">Failed to load camera provider due to OS or hardware issue. Try rebooting.</string>
@@ -188,9 +188,41 @@
     <string name="zsl_setting_desc">Uses Zero Shutter Lag (ZSL) in Latency mode for faster capture. Certain devices may have a buggy implementation for this.</string>
     <string name="audio_permission_failed_in_recording">Unable to request for audio permission in between a recording</string>
 
+    <string name="three_dots">…</string>
+    <string name="search_images">Search Images</string>
+    <string name="back">Back</string>
+
+    <string name="multiple_deletion_message">Do you wish to delete %d items?</string>
+
+    <string name="play_video">Play Video</string>
+    <string name="load_media_failure_message">Unable to load media %s</string>
+
+    <string name="select_media">Select Media</string>
+    <string name="select_all_items">Select all items</string>
+    <string name="selected_items_template">%d selected</string>
+
+    <string name="delete_items">Delete items</string>
+    <string name="share_items">Share items</string>
+
+    <string name="edit_a_copy">Edit a copy</string>
+    <string name="edit_a_copy_with">Edit a copy with</string>
+    <string name="delete_media">Delete Media</string>
+    <string name="show_media_info">Show media info</string>
+
+    <string name="edit_original_image">Edit original image with</string>
+
+    <string name="unlock_device">Unlock device</string>
+
+    <string name="select_an_item_request">Select an item before performing any action</string>
+    <string name="error">Error</string>
+
+    <string name="failed_multiple_deletion_message">Failed to delete %d/%d items</string>
+
     <string name="tap_to_mute_audio">Tap to mute audio</string>
     <string name="tap_to_unmute_audio">Tap to unmute audio</string>
 
     <string name="video_audio_recording_muted">The video\'s audio recording has been muted</string>
     <string name="video_audio_recording_unmuted">The video\'s audio recording has been unmuted</string>
+
+    <string name="grid_view">Grid View</string>
 </resources>
